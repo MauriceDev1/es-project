@@ -17,6 +17,10 @@
         "name": "next"
       }
     ],
+    "typeRoots": [
+      "./node_modules/@types",
+      "./@types" // or "./types" depending on what you named your directory
+    ],
     "paths": {
       "@/*": ["./src/*"]
     }

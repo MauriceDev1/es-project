@@ -1,37 +1,49 @@
-// src/app/api/register/route.ts
-import { NextResponse } from 'next/server';
-import clientPromise from '@/app/lib/mongodb';
+import User from "@/models/User";
+import connect from "@/utils/db";
+import bcrypt from "bcryptjs";
+import { NextResponse } from "next/server";
 
-export async function POST(req: Request) {
-    try {
-        const formData = await req.formData();
+export const POST = async (request: Request) => {
+    // Destructure and type the incoming data
+    const { email, password, username, role }: { email: string; password: string; username: string; role: string } = await request.json();
 
-        // Extract values from FormData
-        const username = formData.get('username')?.toString();
-        const email = formData.get('email')?.toString();
-        const password = formData.get('password')?.toString();
-        const role = formData.get('role')?.toString();
+    console.log("Received data:", { email, password, username, role });
 
-        // Optional: Validate inputs here
-        if (!username || !email || !password || !role) {
-            return NextResponse.json({ error: "All fields are required" }, { status: 400 });
-        }
+    // Connect to the database
+    await connect();
 
-        // Connect to the database
-        const client = await clientPromise;
-        const db = client.db("your_database_name"); // Replace with your database name
+    // Check if user with the same email already exists
+    const existingUser = await User.findOne({ email });
 
-        // Insert the new user into the database
-        const result = await db.collection("users").insertOne({
-            username,
-            email,
-            password, // Make sure to hash the password before saving
-            role,
-        });
-
-        return NextResponse.json({ message: "User registered successfully!" });
-    } catch (error) {
-        console.error("Error registering user:", error);
-        return NextResponse.json({ error: "Registration failed" }, { status: 500 });
+    if (existingUser) {
+        return new NextResponse("Email is already in use", { status: 400 });
     }
-}
+
+    // Hash the password
+    const hashedPassword = await bcrypt.hash(password, 10); // Use 10 salt rounds
+
+    // Create a new user object
+    const newUser = new User({
+        email,
+        password: hashedPassword,
+        username, // Ensure username is included
+        role,     // Ensure role is included
+    });
+
+    try {
+        // Attempt to save the user to the database
+        const savedUser = await newUser.save();
+        console.log("User registered successfully:", savedUser); // Log the saved user
+
+        // Create the absolute URL for the redirect
+        // const redirectUrl = new URL('/login', request.url).toString();
+
+        // Redirect to the login page
+        return NextResponse.json({ success: true, redirectTo: '/login' });// Use the absolute URL
+    } catch (error) {
+        console.error("Error registering user:", error); // Log the error for debugging
+        return new NextResponse("Internal server error", {
+            status: 500,
+        });
+    }
+};

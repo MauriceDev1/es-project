@@ -1,27 +1,23 @@
-"use client"
-
+// Import necessary packages
 import Link from "next/link";
 import SearchComponent from "@/app/components/SearchComponent";
 import { CiMenuBurger } from "react-icons/ci";
 import { IoIosArrowDown } from "react-icons/io";
-import { useRouter } from "next/navigation";
 import ProfileComponent from "./ProfileComponent";
-import { useState, useEffect } from "react"; // to manage auth state
+import { cookies } from "next/headers"; // Import cookies utility from Next.js
 
-function NavBar() {
-  const router = useRouter();
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+async function fetchAuthStatus() {
+  // Simulate checking for an authentication cookie
+  const cookieStore = cookies();
+  const authCookie = cookieStore.get("auth-token"); // Adjust the cookie name as necessary
 
-  // Example check for user login status
-  useEffect(() => {
-    // Replace this with your actual authentication check logic
-    const checkAuthStatus = async () => {
-      const user = false; // You can replace this with a real check
-      setIsLoggedIn(!!user);
-    };
 
-    checkAuthStatus();
-  }, []);
+
+  return !!authCookie; // Return true if the cookie exists, false otherwise
+}
+
+export default async function NavBar() {
+  const isLoggedIn = await fetchAuthStatus(); // Get the login status
 
   return (
     <nav className="w-full h-14 border-b border-gray-200 z-50 sticky top-0 bg-white">
@@ -45,12 +41,11 @@ function NavBar() {
 
           {/* Conditional rendering based on login status */}
           {!isLoggedIn ? (
-            <button
-              className="px-7 h-8 bg-black hover:bg-gray-500 rounded-3xl text-white duration-300"
-              onClick={() => router.push('/login')}
-            >
-              Login
-            </button>
+            <Link href="/login">
+              <button className="px-7 h-8 bg-black hover:bg-gray-500 rounded-3xl text-white duration-300">
+                Login
+              </button>
+            </Link>
           ) : (
             <ProfileComponent />
           )}
@@ -62,5 +57,3 @@ function NavBar() {
     </nav>
   );
 }
-
-export default NavBar;

@@ -1,38 +1,38 @@
-import { auth } from '@/app/config/firebase';
-import { signInWithEmailAndPassword } from 'firebase/auth';
-import { NextRequest, NextResponse } from 'next/server';
+import { cookies } from "next/headers"; // Import from next/headers
+import { NextResponse } from "next/server";
+import connect from "@/utils/db";
+import bcrypt from "bcryptjs";
+import User from "@/models/User";
+import jwt from "jsonwebtoken";
 
-export async function POST(req: NextRequest) {
-  try {
-    // Parse form data to get email and password
-    const formData = await req.formData();
-    const email = formData.get('email') as string | null;
-    const password = formData.get('password') as string | null;
+export const POST = async (request: Request) => {
+    const { email, password }: { email: string; password: string } = await request.json();
+    try {
+        await connect();
+        const user = await User.findOne({ email });
+        if (!user) {
+            return new NextResponse("User not found", { status: 404 });
+        }
 
-    // Validate email and password
-    if (!email || !password) {
-      return NextResponse.json({ error: 'Email and password are required' }, { status: 400 });
+        const isPasswordValid = await bcrypt.compare(password, user.password);
+        if (!isPasswordValid) {
+            return new NextResponse("Invalid credentials", { status: 401 });
+        }
+
+        const token = jwt.sign({ id: user._id, email: user.email }, process.env.JWT_SECRET!, { expiresIn: '1h' });
+
+        // Set the token as a cookie using next/headers
+        cookies().set('auth-token', token, {
+          httpOnly: true,  // This makes it inaccessible to JavaScript
+          secure: process.env.NODE_ENV === 'production', // Ensure this is true in production
+          maxAge: 60 * 60, // 1 hour
+          path: '/' // Ensure it's accessible across the entire application
+        });
+
+        // Redirect to the user-profile page
+        return NextResponse.redirect(new URL('/user-profile', request.url));
+    } catch (error) {
+        console.error("Error during login:", error);
+        return new NextResponse("Internal server error", { status: 500 });
     }
-
-    // Authenticate the user with Firebase
-    const userCredential = await signInWithEmailAndPassword(auth, email, password);
-    const user = userCredential.user;
-
-    // Get Firebase ID token for setting as a cookie
-    const token = await user.getIdToken();
-
-    // Create a response and set the ID token as a secure, httpOnly cookie
-    const response = NextResponse.redirect(new URL('/user-profile', req.url)); // Use req.url here
-    response.cookies.set('token', token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      path: '/',
-      maxAge: 60 * 60 // 1 hour
-    });
-
-    return response;
-  } catch (error) {
-    console.error('Login failed:', error);
-    return NextResponse.json({ error: 'Invalid email or password' }, { status: 401 });
-  }
-}
+};

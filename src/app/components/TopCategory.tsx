@@ -43,6 +43,7 @@ function TopCategory() {
     const [visibleCount, setVisibleCount] = useState(8); // State to keep track of visible cards
 
     const handleLoadMore = () => {
+        console.log('Button clicked');
         setVisibleCount((prevCount) => Math.min(prevCount + 8, allTypes.length)); // Load 8 more cards, capped at total length
     };
 
